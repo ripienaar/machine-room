@@ -1,0 +1,94 @@
+version: "3"
+services:
+  # configures all the services with config files in volumes
+  setup:
+    hostname: setup.choria.local
+    image: registry.choria.io/choria/choria:latest
+    entrypoint: /setup/setup.sh
+    user: root
+    volumes:
+      - ./setup/:/setup
+      - issuer:/configuration/issuer
+      - provisioner:/configuration/provisioner
+      - broker:/configuration/broker
+      - customer:/configuration/customer
+      - saas-nats:/configuration/saas-nats
+
+  # serves up autonomous agents over http
+  plugins.choria:
+    hostname: plugins.choria.local
+    image: httpd:latest
+    dns_search: choria.local
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+    volumes:
+      - ./setup/agents:/usr/local/apache2/htdocs/
+
+  # choria broker where provisioning happens
+  provision:
+    hostname: provision.choria.local
+    image: registry.choria.io/choria/choria:latest
+    dns_search: choria.local
+    command: broker run --config /etc/choria/broker.conf
+    volumes:
+      - broker:/etc/choria
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+
+  # choria provisioner used to onboard customers
+  provisioner:
+    hostname: provisioner.choria.local
+    image: registry.choria.io/choria/provisioner:latest
+    dns_search: choria.local
+    command: --config /etc/choria-provisioner/provisioner.yaml --choria-config /etc/choria-provisioner/choria.cfg
+    volumes:
+      - provisioner:/etc/choria-provisioner
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+
+  # NATS JetStream server that represents the SaaS Backend
+  saas-nats:
+    hostname: saas-nats.choria.local
+    image: synadia/nats-server:nightly
+    dns_search: choria.local
+    command: --config /machine-room/server.conf
+    environment:
+      NATS_USER: backend
+      NATS_PASSWORD: s3cret
+    volumes:
+      - saas-nats:/machine-room
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+
+  # Configures a few streams once the SaaS JetStream is up
+  saas-stream-setup:
+    image: synadia/nats-server:nightly
+    dns_search: choria.local
+    entrypoint: /machine-room/create.sh
+    volumes:
+      - saas-nats:/machine-room
+    depends_on: [saas-nats]
+
+  # A customer running our example agent
+  customer:
+    hostname: managed.example.net
+    user: root
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+    volumes:
+      - customer:/etc/nats-manager
+    build:
+      context: agent
+      dockerfile: Dockerfile
+
+volumes:
+  issuer:
+  provisioner:
+  broker:
+  customer:
+  saas-nats:
