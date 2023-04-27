@@ -15,7 +15,7 @@ the use case of managed software SaaS but without containing any SaaS specific l
 
  * Single-binary, Single-process per managed machine running in the Customer site hosting all Choria components (or 1 per k8s cluster)
  * RPM+JWT being all that is needed in the client site
- * Branded builds via standard Choria Packager mechanisms
+ * Standard go binary, use `go build` or `goreleaser` or any build and deploy method
  * Standard minimal command with the possibility for a SaaS offering to extend the CLI at build time
  * Choria Provisioner hosted externally for initial flow and integration with the SaaS backend
  * On-prem local copies of the following will be provided:

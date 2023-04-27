@@ -13,8 +13,8 @@ import (
 	"github.com/choria-io/go-choria/providers/provtarget"
 	"github.com/choria-io/go-choria/server"
 	"github.com/nats-io/nats.go"
-	"github.com/ripienaar/machine-room/pkg/internal/autoagents/factsrefresh"
-	"github.com/ripienaar/machine-room/pkg/options"
+	"github.com/ripienaar/machine-room/internal/autoagents/factsrefresh"
+	"github.com/ripienaar/machine-room/options"
 	"github.com/sirupsen/logrus"
 )
 

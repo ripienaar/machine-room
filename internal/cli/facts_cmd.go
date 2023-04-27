@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/choria-io/fisk"
-	"github.com/ripienaar/machine-room/pkg/internal/facts"
+	"github.com/ripienaar/machine-room/internal/facts"
 )
 
 func (c *CLI) factsCommand(_ *fisk.ParseContext) error {

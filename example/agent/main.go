@@ -6,13 +6,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/ripienaar/machine-room/pkg/cli"
-	"github.com/ripienaar/machine-room/pkg/options"
+	"github.com/ripienaar/machine-room"
+	"github.com/ripienaar/machine-room/options"
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
-	app, err := cli.New(options.Options{
+	app, err := machineroom.New(options.Options{
 		Name:    "nats-manager",
 		Version: "0.0.1",
 		Contact: "info@example.net",

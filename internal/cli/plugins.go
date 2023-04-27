@@ -12,7 +12,7 @@ import (
 	"github.com/choria-io/go-choria/plugin"
 	golangrpc "github.com/choria-io/go-choria/providers/agent/mcorpc/golang"
 	provisioner "github.com/choria-io/go-choria/providers/agent/mcorpc/golang/provision"
-	machines_manager "github.com/ripienaar/machine-room/pkg/internal/autoagents/machinesmanager"
+	"github.com/ripienaar/machine-room/internal/autoagents/machinesmanager"
 )
 
 func init() {

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/choria-io/go-choria/build"
-	"github.com/ripienaar/machine-room/pkg/options"
+	"github.com/ripienaar/machine-room/options"
 	"github.com/sirupsen/logrus"
 )
 

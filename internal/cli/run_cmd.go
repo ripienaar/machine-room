@@ -10,8 +10,8 @@ import (
 	"github.com/choria-io/go-choria/choria"
 	"github.com/choria-io/go-choria/config"
 	"github.com/nats-io/nats.go"
-	"github.com/ripienaar/machine-room/pkg/internal/broker"
-	"github.com/ripienaar/machine-room/pkg/internal/server"
+	"github.com/ripienaar/machine-room/internal/broker"
+	"github.com/ripienaar/machine-room/internal/server"
 	"github.com/sirupsen/logrus"
 )
 

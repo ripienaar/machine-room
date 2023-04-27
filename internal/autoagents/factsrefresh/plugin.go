@@ -7,7 +7,7 @@ import (
 	mp "github.com/choria-io/go-choria/aagent/plugin"
 	"github.com/choria-io/go-choria/aagent/watchers"
 	"github.com/choria-io/go-choria/plugin"
-	"github.com/ripienaar/machine-room/pkg/options"
+	"github.com/ripienaar/machine-room/options"
 )
 
 func Register(opts *options.Options, cfgFile string) error {

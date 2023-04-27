@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/choria-io/fisk"
-	"github.com/ripienaar/machine-room/pkg/options"
+	"github.com/ripienaar/machine-room/options"
 	"github.com/sirupsen/logrus"
 )
 
