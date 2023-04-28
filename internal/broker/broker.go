@@ -245,7 +245,7 @@ func (b *Broker) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	go b.setupStreams(ctx)
 
 	if len(b.cfg.Choria.BrokerAdapters) > 0 {
-		b.log.Warnf("Starting data adapters: %s", strings.Join(b.cfg.Choria.BrokerAdapters, ", "))
+		b.log.Infof("Starting data adapters: %s", strings.Join(b.cfg.Choria.BrokerAdapters, ", "))
 		err = adapter.RunAdapters(ctx, b.fw, wg)
 		if err != nil {
 			b.log.Errorf("Could not start adapters: %v", err)
@@ -333,7 +333,7 @@ func (b *Broker) createSubmitStream(ctx context.Context, nc *nats.Conn) error {
 }
 
 func (b *Broker) setupStreams(ctx context.Context) {
-	b.log.Warnf("Setting up Machine Room Streams")
+	b.log.Infof("Setting up Machine Room Streams")
 
 	err := backoff.Default.For(ctx, func(try int) error {
 		if try > 10 {
@@ -371,7 +371,7 @@ func (b *Broker) setupStreams(ctx context.Context) {
 		return nil
 	})
 	if err == nil {
-		b.log.Warnf("Machine Room Streams created")
+		b.log.Infof("Machine Room Streams created")
 	} else {
 		b.log.Errorf("Could not set up Machine Room streams: %v", err)
 	}

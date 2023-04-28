@@ -9,6 +9,11 @@ import (
 )
 
 func (c *CLI) buildInfoCommand(_ *fisk.ParseContext) error {
+	_, _, err := c.CommonConfigure()
+	if err != nil {
+		return err
+	}
+
 	bi := build.Info{}
 
 	nfo := map[string]any{

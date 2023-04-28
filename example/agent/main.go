@@ -18,7 +18,7 @@ func main() {
 		Contact: "info@example.net",
 		Help:    "NATS Manager",
 
-		// The public key of the autonomous agent spec encoding, see setup/agents/signer.*
+		// The public key of the autonomous agent spec encoding key, see setup/agents/signer.*
 		MachineSigningKey: "b217b9c7574ad807f653754b9722e8001399c5646235742204963522da5c3b82",
 
 		// optional below...
@@ -27,13 +27,15 @@ func main() {
 		FactsRefreshInterval: time.Minute,
 
 		// Users can plug in custom facts in addition to standard facts
-		AdditionalFacts: func(_ context.Context, cfg options.Options, log *logrus.Entry) (map[string]any, error) {
-			return map[string]any{"extra": true}, nil
-		},
+		AdditionalFacts: extraFacts,
 	})
 	panicIfError(err)
 
 	panicIfError(app.Run(context.Background()))
+}
+
+func extraFacts(_ context.Context, cfg options.Options, log *logrus.Entry) (map[string]any, error) {
+	return map[string]any{"extra": true}, nil
 }
 
 func panicIfError(err error) {

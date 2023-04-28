@@ -86,7 +86,6 @@ def set_config!(request, reply)
     "plugin.choria.middleware_hosts" => brokers,
     "plugin.security.issuer.names" => "choria",
     "plugin.security.issuer.choria.public" => "ISSUER",
-    "plugin.choria.machine.signing_key" => "ISSUER",
     "plugin.security.provider" => "choria",
     "plugin.security.choria.token_file" => File.join(request["ed25519_pubkey"]["directory"], "server.jwt"),
     "plugin.security.choria.seed_file" => File.join(request["ed25519_pubkey"]["directory"], "server.seed"),

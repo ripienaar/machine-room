@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/choria-io/go-choria/plugin"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,6 +20,13 @@ type Options struct {
 	Help string
 	// Version will be reported in --version and elsewhere
 	Version string
+	// MachineSigningKey hex encoded ed25519 key used to sign autonomous agents
+	MachineSigningKey string
+
+	// optional below
+
+	// Plugins are additional plugins like autonomous agents to add to the build
+	Plugins map[string]plugin.Pluggable
 	// ProvisioningJWTFile is the path to provisioning jwt file, defaults to provisioning.jwt in the options dir
 	ProvisioningJWTFile string
 	// FactsFile is the path to the facts file which default to instance.json in the options dir
@@ -29,6 +37,4 @@ type Options struct {
 	AdditionalFacts FactsGenerator
 	// CommandPath is the path to the command being run, defaults to argv[0]
 	CommandPath string
-	// MachineSigningKey hex encoded ed25519 key used to sign autonomous agents
-	MachineSigningKey string
 }

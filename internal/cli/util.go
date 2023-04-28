@@ -71,6 +71,11 @@ func (c *CLI) CommonConfigure() (*options.Options, *logrus.Entry, error) {
 		log.SetLevel(logrus.DebugLevel)
 	}
 
+	err = loadPlugins(c.opts, log.WithField("stage", "plugins"))
+	if err != nil {
+		return nil, nil, fmt.Errorf("loading plugins failed: %v", err)
+	}
+
 	go c.interruptWatcher()
 
 	return c.opts, c.log, nil
@@ -80,18 +85,23 @@ func (c *CLI) validateOptions() error {
 	if c.opts.Help == "" {
 		c.opts.Help = defaultHelp
 	}
+
 	if c.opts.Version == "" {
 		c.opts.Version = version
 	}
+
 	if c.opts.Name == "" {
 		c.opts.Name = defaultName
 	}
+
 	if c.opts.FactsRefreshInterval < time.Minute {
 		c.opts.FactsRefreshInterval = 10 * time.Minute
 	}
+
 	if c.opts.CommandPath == "" {
 		c.opts.CommandPath = os.Args[0]
 	}
+
 	if c.opts.MachineSigningKey == "" {
 		return fmt.Errorf("autonomous agent signing key is required")
 	}

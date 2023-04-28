@@ -31,6 +31,8 @@ services:
     image: registry.choria.io/choria/choria:latest
     dns_search: choria.local
     command: broker run --config /etc/choria/broker.conf
+    ports:
+      - "${PROVISIONER_PORT}:4222"
     volumes:
       - broker:/etc/choria
     depends_on:

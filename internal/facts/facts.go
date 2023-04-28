@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/choria-io/go-choria/choria"
 	"github.com/choria-io/tokens"
@@ -97,7 +98,9 @@ func Generate(ctx context.Context, cfg options.Options, log *logrus.Entry) (any,
 	}
 
 	data["machine_room"] = map[string]any{
-		"server_token": string(token),
+		"timestamp":         time.Now(),
+		"timestamp_seconds": time.Now().Unix(),
+		"server_token":      string(token),
 		"provisioning": map[string]any{
 			"extended_claims": ext,
 		},

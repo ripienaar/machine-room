@@ -36,7 +36,7 @@ watchers:
 
   - name: specification
     type: kv
-    interval: 1m
+    interval: 30s
     state_match: [ MANAGE ]
     properties:
       bucket: CONFIG
