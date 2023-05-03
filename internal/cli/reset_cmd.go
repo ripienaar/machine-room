@@ -62,7 +62,7 @@ func (c *CLI) resetCommand(_ *fisk.ParseContext) error {
 		log.Errorf("Could not remove seed file: %v", err)
 	}
 	if opts.ConfigurationDirectory != "" {
-		for _, f := range []string{"ca.pem", "cert.pem", "key.pem"} {
+		for _, f := range []string{"ca.pem", "cert.pem", "key.pem", "nats.creds", "nats.nkey"} {
 			path := filepath.Join(opts.ConfigurationDirectory, f)
 			log.Warnf("Removing x509 file %v", path)
 			err = os.Remove(path)
