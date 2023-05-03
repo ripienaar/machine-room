@@ -8,6 +8,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	ConfigKeySourceHost    = "machine_room.source.host"
+	ConfigKeySourceNatsJwt = "machine_room.source.nats_jwt"
+	ConfigKeyRole          = "machine_room.role"
+	ConfigKeySite          = "machine_room.site"
+)
+
 // FactsGenerator gathers facts
 type FactsGenerator func(ctx context.Context, cfg Options, log *logrus.Entry) (map[string]any, error)
 
@@ -69,6 +76,10 @@ type Options struct {
 	CommandPath string `json:"command_path"`
 	// ServerStorageDirectory the directory where state is stored (RO)
 	ServerStorageDirectory string `json:"server_storage_directory"`
+	// NatsNeySeedFile is a path to a nkey seed created at start
+	NatsNeySeedFile string `json:"nats_ney_seed_file"`
+	// NatsCredentialsFile is a path to the nats credentials file holding data received during provisioning
+	NatsCredentialsFile string `json:"nats_credentials_file"`
 	// StartTime the time the process started (RO)
 	StartTime time.Time `json:"start_time"`
 }

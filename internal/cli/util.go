@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/choria-io/go-choria/build"
+	"github.com/choria-io/go-choria/choria"
+	"github.com/nats-io/nkeys"
 	"github.com/ripienaar/machine-room/options"
 	"github.com/sirupsen/logrus"
 )
@@ -37,6 +39,8 @@ func (c *CLI) CommonConfigure() (options.Options, *logrus.Entry, error) {
 	c.opts.ProvisioningJWTFile = filepath.Join(c.opts.ConfigurationDirectory, "provisioning.jwt")
 	c.opts.FactsFile = filepath.Join(c.opts.ConfigurationDirectory, "instance.json")
 	c.opts.ServerStorageDirectory = "/var/lib/choria/machine-room"
+	c.opts.NatsNeySeedFile = filepath.Join(c.opts.ConfigurationDirectory, "nats.nkey")
+	c.opts.NatsCredentialsFile = filepath.Join(c.opts.ConfigurationDirectory, "nats.creds")
 
 	build.ProvisionJWTFile = c.opts.ProvisioningJWTFile
 
@@ -148,4 +152,28 @@ func (c *CLI) interruptWatcher() {
 			return
 		}
 	}
+}
+
+func (c *CLI) createServerNKey() error {
+	if c.opts.NatsNeySeedFile == "" {
+		return fmt.Errorf("no nkey seed configured")
+	}
+	if choria.FileExist(c.opts.NatsNeySeedFile) {
+		return nil
+	}
+
+	ukp, err := nkeys.CreateUser()
+	if err != nil {
+		return fmt.Errorf("could not generate user nkey: %v", err)
+	}
+	ukps, err := ukp.Seed()
+	if err != nil {
+		return fmt.Errorf("could not generate user nkey: %v", err)
+	}
+	err = os.WriteFile(c.opts.NatsNeySeedFile, ukps, 0400)
+	if err != nil {
+		return fmt.Errorf("could not generate user nkey: %v", err)
+	}
+
+	return nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/ripienaar/machine-room/internal/broker"
 	"github.com/ripienaar/machine-room/internal/server"
+	"github.com/ripienaar/machine-room/options"
 	"github.com/sirupsen/logrus"
 )
 
@@ -29,12 +30,17 @@ func (c *CLI) runCommand(pc *fisk.ParseContext) error {
 			return err
 		}
 
-		c.isLeader = cfg.Option("machine_room.role", "follower") == "leader"
+		c.isLeader = cfg.Option(options.ConfigKeyRole, "follower") == "leader"
 	}
 
 	c.log = c.log.WithFields(logrus.Fields{"leader": c.isLeader})
 
 	c.log.Warnf("Starting %s version %s with config file %s", c.opts.Name, c.opts.Version, c.cfgFile)
+
+	err = c.createServerNKey()
+	if err != nil {
+		c.log.Errorf("Could not create nkey: %v", err)
+	}
 
 	// makes sure we have some facts to send during provisioning
 	err = c.factsCommand(pc)

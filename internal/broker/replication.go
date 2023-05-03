@@ -7,6 +7,7 @@ import (
 
 	srcfg "github.com/choria-io/stream-replicator/config"
 	"github.com/choria-io/stream-replicator/replicator"
+	"github.com/ripienaar/machine-room/options"
 )
 
 // StartReplication starts to replicate our standard streams and buckets
@@ -15,13 +16,13 @@ func (b *Broker) StartReplication(ctx context.Context, wg *sync.WaitGroup) error
 
 	b.log.Infof("Starting data replication")
 
-	backendUrl := b.cfg.Option("machine_room.source.host", "")
+	backendUrl := b.cfg.Option(options.ConfigKeySourceHost, "")
 	if backendUrl == "" {
 		fmt.Printf("\n%#v\n", b.cfg)
 		return fmt.Errorf("replication source is not defined")
 	}
 
-	site := b.cfg.Option("machine_room.site", "")
+	site := b.cfg.Option(options.ConfigKeySite, "")
 	if site == "" {
 		return fmt.Errorf("site is not defined")
 	}

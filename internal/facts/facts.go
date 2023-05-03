@@ -8,6 +8,7 @@ import (
 
 	"github.com/choria-io/go-choria/choria"
 	"github.com/choria-io/tokens"
+	"github.com/nats-io/nkeys"
 	"github.com/ripienaar/machine-room/options"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
@@ -65,6 +66,7 @@ func machineRoomFacts(opts options.Options, data map[string]map[string]any, log 
 
 	token := []byte{}
 	pubKey := []byte{}
+	pubNKey := ""
 
 	if choria.FileExist(opts.ServerJWTFile) {
 		token, err = os.ReadFile(opts.ServerJWTFile)
@@ -80,12 +82,20 @@ func machineRoomFacts(opts options.Options, data map[string]map[string]any, log 
 		}
 	}
 
+	if choria.FileExist(opts.NatsNeySeedFile) {
+		pubNKey, err = loadNkeyPublic(opts)
+		if err != nil {
+			log.Warnf("Could not read nkey: %v", err)
+		}
+	}
+
 	data["machine_room"] = map[string]any{
 		"timestamp":         time.Now(),
 		"timestamp_seconds": time.Now().Unix(),
 		"server": map[string]any{
-			"token":      string(token),
-			"public_key": hex.EncodeToString(pubKey),
+			"token":       string(token),
+			"public_key":  hex.EncodeToString(pubKey),
+			"public_nkey": pubNKey,
 		},
 		"options": opts,
 		"provisioning": map[string]any{
@@ -93,6 +103,18 @@ func machineRoomFacts(opts options.Options, data map[string]map[string]any, log 
 			"token":           string(provToken),
 		},
 	}
+}
+
+func loadNkeyPublic(opts options.Options) (string, error) {
+	seed, err := os.ReadFile(opts.NatsNeySeedFile)
+	if err != nil {
+		return "", err
+	}
+	kp, err := nkeys.FromSeed(seed)
+	if err != nil {
+		return "", err
+	}
+	return kp.PublicKey()
 }
 
 func standardFacts(ctx context.Context, opts options.Options, data map[string]map[string]any, log *logrus.Entry) {

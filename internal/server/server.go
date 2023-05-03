@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
@@ -11,8 +12,11 @@ import (
 	"github.com/choria-io/go-choria/config"
 	"github.com/choria-io/go-choria/providers/provtarget"
 	"github.com/choria-io/go-choria/server"
+	"github.com/nats-io/jwt/v2"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nkeys"
 	"github.com/ripienaar/machine-room/internal/autoagents/factsrefresh"
+	"github.com/ripienaar/machine-room/internal/facts"
 	"github.com/ripienaar/machine-room/options"
 	"github.com/sirupsen/logrus"
 )
@@ -21,6 +25,7 @@ type Server struct {
 	cfg    *config.Config
 	bi     *build.Info
 	fw     *choria.Framework
+	opts   *options.Options
 	inproc nats.InProcessConnProvider
 	log    *logrus.Entry
 }
@@ -32,24 +37,25 @@ func New(opts *options.Options, configFile string, inproc nats.InProcessConnProv
 
 	var err error
 	srv := &Server{
-		bi:  &build.Info{},
-		log: log.WithField("machine_room", "server"),
+		bi:   &build.Info{},
+		opts: opts,
+		log:  log.WithField("machine_room", "server"),
 	}
-
-	//srv.log.Logger.SetLevel(logrus.DebugLevel)
 
 	srv.bi.SetProvisionJWTFile(opts.ProvisioningJWTFile)
 	srv.bi.SetProvisionUsingVersion2(false)
 	srv.bi.EnableProvisionModeAsDefault()
+	srv.bi.SetProvisionFacts(opts.FactsFile)
 	build.Version = opts.Version // TODO: wrap in bi
 
+	hasRequiredFiles := choria.FileExist(configFile) && choria.FileExist(opts.ServerJWTFile) && choria.FileExist(opts.ServerSeedFile) && choria.FileExist(opts.NatsNeySeedFile)
+
 	switch {
-	case choria.FileExist(configFile):
+	case hasRequiredFiles:
 		srv.cfg, err = config.NewSystemConfig(configFile, true)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse configuration: %s", err)
+			log.Errorf("Could not parse configuration, forcing reprovision: %v", err)
 		}
-		srv.cfg.CustomLogger = srv.log.Logger
 
 		if srv.shouldProvision() {
 			provtarget.Configure(context.Background(), srv.cfg, srv.log.WithField("component", "provtarget"))
@@ -60,6 +66,8 @@ func New(opts *options.Options, configFile string, inproc nats.InProcessConnProv
 				return nil, err
 			}
 		} else {
+			srv.cfg.CustomLogger = srv.log.Logger
+
 			// auto agents are always on
 			srv.cfg.Choria.MachineSourceDir = opts.MachinesDirectory
 			srv.cfg.Choria.MachinesSignerPublicKey = opts.MachineSigningKey
@@ -85,7 +93,15 @@ func New(opts *options.Options, configFile string, inproc nats.InProcessConnProv
 			srv.cfg.Choria.ChoriaSecurityTokenFile = opts.ServerJWTFile
 			srv.cfg.Choria.ChoriaSecuritySeedFile = opts.ServerSeedFile
 
-			os.MkdirAll(srv.cfg.Choria.MachineSourceDir, 0700)
+			err = os.MkdirAll(srv.cfg.Choria.MachineSourceDir, 0700)
+			if err != nil {
+				srv.log.Warnf("Could not create machine source directory: %v", err)
+			}
+
+			err = srv.saveCredentials()
+			if err != nil {
+				srv.log.Errorf("Could not save NATS credentials: %v", err)
+			}
 
 			err = factsrefresh.Register(opts, configFile)
 			if err != nil {
@@ -94,6 +110,11 @@ func New(opts *options.Options, configFile string, inproc nats.InProcessConnProv
 		}
 
 	default:
+		err = srv.createServerNKey()
+		if err != nil {
+			return nil, err
+		}
+
 		srv.cfg, err = srv.provisionConfig(configFile, srv.bi)
 		if err != nil {
 			return nil, err
@@ -120,6 +141,7 @@ func New(opts *options.Options, configFile string, inproc nats.InProcessConnProv
 
 func (s *Server) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	s.fw.ConfigureProvisioning(ctx)
+
 	instance, err := server.NewInstance(s.fw)
 	if err != nil {
 		return fmt.Errorf("could not create Choria Machine Room Server instance: %s", err)
@@ -141,6 +163,10 @@ func (s *Server) IsProvisioning() bool {
 }
 
 func (s *Server) shouldProvision() bool {
+	if s.cfg == nil {
+		return true
+	}
+
 	should := true
 	if s.cfg.HasOption("plugin.choria.server.provision") {
 		should = s.cfg.Choria.Provision
@@ -149,9 +175,57 @@ func (s *Server) shouldProvision() bool {
 	return should
 }
 
+func (s *Server) saveCredentials() error {
+	njwt := s.cfg.Option(options.ConfigKeySourceNatsJwt, "")
+	if njwt == "" {
+		return nil
+	}
+
+	nkBytes, err := os.ReadFile(s.opts.NatsNeySeedFile)
+	if err != nil {
+		return err
+	}
+
+	cred, err := jwt.FormatUserConfig(njwt, nkBytes)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(s.opts.NatsCredentialsFile, cred, 0600)
+}
+
+func (s *Server) createServerNKey() error {
+	if s.opts.NatsNeySeedFile == "" {
+		return fmt.Errorf("no nkey seed configured")
+	}
+	if choria.FileExist(s.opts.NatsNeySeedFile) {
+		return nil
+	}
+
+	ukp, err := nkeys.CreateUser()
+	if err != nil {
+		return fmt.Errorf("could not generate user nkey: %v", err)
+	}
+	ukps, err := ukp.Seed()
+	if err != nil {
+		return fmt.Errorf("could not generate user nkey: %v", err)
+	}
+	err = os.WriteFile(s.opts.NatsNeySeedFile, ukps, 0400)
+	if err != nil {
+		return fmt.Errorf("could not generate user nkey: %v", err)
+	}
+
+	return nil
+}
+
 func (s *Server) provisionConfig(f string, bi *build.Info) (*config.Config, error) {
 	if !choria.FileExist(bi.ProvisionJWTFile()) {
 		return nil, fmt.Errorf("provisioming token not found in %s", bi.ProvisionJWTFile())
+	}
+
+	err := s.createServerNKey()
+	if err != nil {
+		return nil, fmt.Errorf("could not create nkey: %w", err)
 	}
 
 	cfg, err := config.NewDefaultSystemConfig(true)
@@ -171,4 +245,20 @@ func (s *Server) provisionConfig(f string, bi *build.Info) (*config.Config, erro
 	cfg.Choria.UseSRVRecords = false
 
 	return cfg, nil
+}
+
+func SaveFacts(ctx context.Context, opts options.Options, log *logrus.Entry) error {
+	data, err := facts.Generate(ctx, opts, log)
+	if err != nil {
+		return err
+	}
+
+	j, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Writing facts to %v", opts.FactsFile)
+
+	return os.WriteFile(opts.FactsFile, j, 0600)
 }

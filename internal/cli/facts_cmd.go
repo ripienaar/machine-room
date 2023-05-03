@@ -1,11 +1,8 @@
 package cli
 
 import (
-	"encoding/json"
-	"os"
-
 	"github.com/choria-io/fisk"
-	"github.com/ripienaar/machine-room/internal/facts"
+	"github.com/ripienaar/machine-room/internal/server"
 )
 
 func (c *CLI) factsCommand(_ *fisk.ParseContext) error {
@@ -14,17 +11,5 @@ func (c *CLI) factsCommand(_ *fisk.ParseContext) error {
 		return err
 	}
 
-	data, err := facts.Generate(c.ctx, *c.opts, log)
-	if err != nil {
-		return err
-	}
-
-	j, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-
-	log.Infof("Writing facts to %v", c.opts.FactsFile)
-
-	return os.WriteFile(c.opts.FactsFile, j, 0600)
+	return server.SaveFacts(c.ctx, *c.opts, log)
 }
