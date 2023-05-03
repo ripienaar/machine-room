@@ -25,6 +25,7 @@ import (
 	"github.com/choria-io/go-choria/choria"
 	"github.com/choria-io/go-choria/config"
 	"github.com/nats-io/nats.go"
+	"github.com/ripienaar/machine-room/options"
 	"github.com/sirupsen/logrus"
 )
 
@@ -36,7 +37,7 @@ type Broker struct {
 	broker *network.Server
 }
 
-func New(configFile string, bi *build.Info, log *logrus.Entry) (*Broker, error) {
+func New(opts *options.Options, configFile string, bi *build.Info, log *logrus.Entry) (*Broker, error) {
 	if configFile == "" {
 		return nil, fmt.Errorf("configuration file is required")
 	}
@@ -79,7 +80,7 @@ func New(configFile string, bi *build.Info, log *logrus.Entry) (*Broker, error) 
 	broker.cfg.Choria.NetworkStreamAdvisoryReplicas = 1
 
 	// always be running jetstream
-	broker.cfg.Choria.NetworkStreamStore = "/var/lib/choria/machine-room"
+	broker.cfg.Choria.NetworkStreamStore = opts.ServerStorageDirectory
 
 	err = broker.saveCert()
 	if err != nil {
@@ -267,7 +268,7 @@ func (b *Broker) createDesiredStateBucket(ctx context.Context, nc *nats.Conn) er
 	}
 
 	if errors.Is(err, nats.ErrBucketNotFound) {
-		_, err = js.CreateKeyValue(&nats.KeyValueConfig{Bucket: "CONFIG", History: 5, Storage: nats.FileStorage})
+		_, err = js.CreateKeyValue(&nats.KeyValueConfig{Bucket: "CONFIG", History: 1, Storage: nats.FileStorage})
 		if err != nil {
 			return err
 		}

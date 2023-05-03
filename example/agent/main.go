@@ -26,6 +26,9 @@ func main() {
 		// how frequently facts get updated on disk, we do it quick here for testing
 		FactsRefreshInterval: time.Minute,
 
+		// too noisy
+		NoCPUFacts: true,
+
 		// Users can plug in custom facts in addition to standard facts
 		AdditionalFacts: extraFacts,
 	})
@@ -34,7 +37,7 @@ func main() {
 	panicIfError(app.Run(context.Background()))
 }
 
-func extraFacts(_ context.Context, cfg options.Options, log *logrus.Entry) (map[string]any, error) {
+func extraFacts(_ context.Context, _ options.Options, _ *logrus.Entry) (map[string]any, error) {
 	return map[string]any{"extra": true}, nil
 }
 

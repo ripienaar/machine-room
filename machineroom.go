@@ -16,7 +16,7 @@ type Instance interface {
 	// Application allows adding additional commands to the CLI application that will be built
 	Application() *fisk.Application
 	// CommonConfigure performs basic setup that a command added using Application() might need
-	CommonConfigure() (*options.Options, *logrus.Entry, error)
+	CommonConfigure() (options.Options, *logrus.Entry, error)
 }
 
 // New creates a new machine room agent instance based on options

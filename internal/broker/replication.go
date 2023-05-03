@@ -92,6 +92,7 @@ func (b *Broker) StartReplication(ctx context.Context, wg *sync.WaitGroup) error
 			TargetProcess:    b.broker,
 			TargetChoriaConn: cc,
 			NoTargetCreate:   true,
+			Ephemeral:        true, // copy the entire thing each time we start to be sure we have the latest config
 			SourceURL:        backendUrl,
 		},
 	}

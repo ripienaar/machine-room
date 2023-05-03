@@ -2,8 +2,8 @@ package facts
 
 import (
 	"context"
+	"encoding/hex"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/choria-io/go-choria/choria"
@@ -17,103 +17,145 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// TODO: support users disabling our default fact gathering entirely if they supply a generator
-
-func Generate(ctx context.Context, cfg options.Options, log *logrus.Entry) (any, error) {
+func Generate(ctx context.Context, opts options.Options, log *logrus.Entry) (any, error) {
 	data := map[string]map[string]any{
+		"machine_room": {},
 		"host":         {},
 		"mem":          {},
 		"swap":         {},
 		"cpu":          {},
 		"disk":         {},
 		"net":          {},
-		"machine_room": {},
 	}
+
+	machineRoomFacts(opts, data, log)
+	additionalFacts(ctx, opts, data, log)
+	standardFacts(ctx, opts, data, log)
+
+	return data, nil
+}
+
+func additionalFacts(ctx context.Context, opts options.Options, data map[string]map[string]any, log *logrus.Entry) {
+	if opts.AdditionalFacts == nil {
+		return
+	}
+
+	extra, err := opts.AdditionalFacts(ctx, opts, log)
+	if err != nil {
+		log.Errorf("Could not gather additional facts: %v", err)
+	} else {
+		data["machine_room"]["additional_facts"] = extra
+	}
+}
+
+func machineRoomFacts(opts options.Options, data map[string]map[string]any, log *logrus.Entry) {
 	var err error
 
-	data["mem"]["virtual"], err = mem.VirtualMemory()
-	if err != nil {
-		log.Warnf("Could not gather virtual memory information: %v", err)
-	}
-
-	data["swap"]["memory"], err = mem.SwapMemory()
-	if err != nil {
-		log.Warnf("Could not gather swap information: %v", err)
-	}
-
-	data["cpu"]["info"], err = cpu.Info()
-	if err != nil {
-		log.Warnf("Could not gather CPU information: %v", err)
-	}
-
-	parts, err := disk.Partitions(true)
-	if err != nil {
-		log.Warnf("Could not gather Disk partitions: %v", err)
-	}
-	if len(parts) > 0 {
-		matchedParts := []disk.PartitionStat{}
-		usages := []*disk.UsageStat{}
-
-		for _, part := range parts {
-			if part.Mountpoint == "" || part.Fstype == "tmpfs" || part.Fstype == "cgroup" || part.Fstype == "proc" || part.Fstype == "devpts" || part.Fstype == "sysfs" || part.Fstype == "mqueue" {
-				continue
-			}
-			matchedParts = append(matchedParts, part)
-			u, err := disk.Usage(part.Mountpoint)
-			if err != nil {
-				log.Warnf("Could not get usage for partition %s: %v", part.Mountpoint, err)
-				continue
-			}
-			usages = append(usages, u)
-		}
-
-		data["disk"]["partitions"] = matchedParts
-		data["disk"]["usage"] = usages
-	}
-
-	data["host"]["info"], err = host.Info()
-	if err != nil {
-		log.Warnf("Could not gather host information: %v", err)
-	}
-
-	data["net"]["interfaces"], err = net.Interfaces()
-	if err != nil {
-		log.Warnf("Could not gather network interfaces: %v", err)
-	}
-
 	ext := tokens.MapClaims{}
-	if choria.FileExist(cfg.ProvisioningJWTFile) {
-		td, err := os.ReadFile(cfg.ProvisioningJWTFile)
+	var provToken []byte
+	if choria.FileExist(opts.ProvisioningJWTFile) {
+		provToken, err = os.ReadFile(opts.ProvisioningJWTFile)
 		if err == nil {
-			t, err := tokens.ParseProvisionTokenUnverified(string(td))
+			t, err := tokens.ParseProvisionTokenUnverified(string(provToken))
 			if err == nil {
 				ext = t.Extensions
 			}
 		}
 	}
 
-	token, err := os.ReadFile(filepath.Join(filepath.Dir(cfg.ProvisioningJWTFile), "server.jwt"))
-	if err != nil {
-		log.Warnf("Could not read server token: %v", err)
+	token := []byte{}
+	pubKey := []byte{}
+
+	if choria.FileExist(opts.ServerJWTFile) {
+		token, err = os.ReadFile(opts.ServerJWTFile)
+		if err != nil {
+			log.Warnf("Could not read server token: %v", err)
+		}
+	}
+
+	if choria.FileExist(opts.ServerSeedFile) {
+		pubKey, _, err = choria.Ed25519KeyPairFromSeedFile(opts.ServerSeedFile)
+		if err != nil {
+			log.Warnf("Could not read server public key: %v", err)
+		}
 	}
 
 	data["machine_room"] = map[string]any{
 		"timestamp":         time.Now(),
 		"timestamp_seconds": time.Now().Unix(),
-		"server_token":      string(token),
+		"server": map[string]any{
+			"token":      string(token),
+			"public_key": hex.EncodeToString(pubKey),
+		},
+		"options": opts,
 		"provisioning": map[string]any{
 			"extended_claims": ext,
+			"token":           string(provToken),
 		},
 	}
+}
 
-	if cfg.AdditionalFacts != nil {
-		extra, err := cfg.AdditionalFacts(ctx, cfg, log)
+func standardFacts(ctx context.Context, opts options.Options, data map[string]map[string]any, log *logrus.Entry) {
+	if opts.NoStandardFacts {
+		return
+	}
+
+	var err error
+
+	if !opts.NoMemoryFacts {
+		data["mem"]["virtual"], err = mem.VirtualMemoryWithContext(ctx)
 		if err != nil {
-			log.Errorf("Could not gather additional facts: %v", err)
-		} else {
-			data["machine_room"]["additional_facts"] = extra
+			log.Warnf("Could not gather virtual memory information: %v", err)
+		}
+
+		data["swap"]["memory"], err = mem.SwapMemoryWithContext(ctx)
+		if err != nil {
+			log.Warnf("Could not gather swap information: %v", err)
 		}
 	}
 
-	return data, nil
+	if !opts.NoCPUFacts {
+		data["cpu"]["info"], err = cpu.InfoWithContext(ctx)
+		if err != nil {
+			log.Warnf("Could not gather CPU information: %v", err)
+		}
+	}
+
+	if !opts.NoDiskFacts {
+		parts, err := disk.PartitionsWithContext(ctx, false)
+		if err != nil {
+			log.Warnf("Could not gather Disk partitions: %v", err)
+		}
+		if len(parts) > 0 {
+			matchedParts := []disk.PartitionStat{}
+			usages := []*disk.UsageStat{}
+
+			for _, part := range parts {
+				matchedParts = append(matchedParts, part)
+				u, err := disk.UsageWithContext(ctx, part.Mountpoint)
+				if err != nil {
+					log.Warnf("Could not get usage for partition %s: %v", part.Mountpoint, err)
+					continue
+				}
+				usages = append(usages, u)
+			}
+
+			data["disk"]["partitions"] = matchedParts
+			data["disk"]["usage"] = usages
+		}
+	}
+
+	if !opts.NoHostFacts {
+		data["host"]["info"], err = host.InfoWithContext(ctx)
+		if err != nil {
+			log.Warnf("Could not gather host information: %v", err)
+		}
+	}
+
+	if !opts.NoNetworkFacts {
+		data["net"]["interfaces"], err = net.InterfacesWithContext(ctx)
+		if err != nil {
+			log.Warnf("Could not gather network interfaces: %v", err)
+		}
+	}
 }

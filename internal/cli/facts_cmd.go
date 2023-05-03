@@ -9,12 +9,12 @@ import (
 )
 
 func (c *CLI) factsCommand(_ *fisk.ParseContext) error {
-	cfg, log, err := c.CommonConfigure()
+	_, log, err := c.CommonConfigure()
 	if err != nil {
 		return err
 	}
 
-	data, err := facts.Generate(c.ctx, *cfg, log)
+	data, err := facts.Generate(c.ctx, *c.opts, log)
 	if err != nil {
 		return err
 	}

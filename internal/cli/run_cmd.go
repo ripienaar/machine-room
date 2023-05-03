@@ -46,7 +46,7 @@ func (c *CLI) runCommand(pc *fisk.ParseContext) error {
 
 	var inproc nats.InProcessConnProvider
 	if c.isLeader {
-		b, err := broker.New(c.cfgFile, &build.Info{}, c.log)
+		b, err := broker.New(c.opts, c.cfgFile, &build.Info{}, c.log)
 		if err != nil {
 			return err
 		}

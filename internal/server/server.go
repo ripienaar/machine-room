@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/choria-io/go-choria/build"
@@ -61,17 +60,16 @@ func New(opts *options.Options, configFile string, inproc nats.InProcessConnProv
 				return nil, err
 			}
 		} else {
-			cfgDir := filepath.Dir(configFile)
 			// auto agents are always on
-			srv.cfg.Choria.MachineSourceDir = filepath.Join(cfgDir, "machine")
+			srv.cfg.Choria.MachineSourceDir = opts.MachinesDirectory
 			srv.cfg.Choria.MachinesSignerPublicKey = opts.MachineSigningKey
 
 			// standard status file always
-			srv.cfg.Choria.StatusFilePath = "/var/lib/choria/machine-room/status.json"
+			srv.cfg.Choria.StatusFilePath = opts.ServerStatusFile
 
 			// message submit for auto agents etc
-			srv.cfg.Choria.SubmissionSpoolMaxSize = 5000
-			srv.cfg.Choria.SubmissionSpool = "/var/lib/choria/machine-room/submission"
+			srv.cfg.Choria.SubmissionSpoolMaxSize = opts.ServerSubmissionSpoolSize
+			srv.cfg.Choria.SubmissionSpool = opts.ServerSubmissionDirectory
 
 			// some settings we need to not forget in provisioning helper
 			srv.cfg.Choria.UseSRVRecords = false
@@ -84,8 +82,8 @@ func New(opts *options.Options, configFile string, inproc nats.InProcessConnProv
 			srv.cfg.MainCollective = "choria"
 
 			srv.cfg.Choria.SecurityProvider = "choria"
-			srv.cfg.Choria.ChoriaSecurityTokenFile = filepath.Join(cfgDir, "server.jwt")
-			srv.cfg.Choria.ChoriaSecuritySeedFile = filepath.Join(cfgDir, "server.seed")
+			srv.cfg.Choria.ChoriaSecurityTokenFile = opts.ServerJWTFile
+			srv.cfg.Choria.ChoriaSecuritySeedFile = opts.ServerSeedFile
 
 			os.MkdirAll(srv.cfg.Choria.MachineSourceDir, 0700)
 

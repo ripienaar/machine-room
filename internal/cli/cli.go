@@ -26,6 +26,7 @@ type CLI struct {
 	debug    bool
 	cfgFile  string
 	isLeader bool
+	force    bool
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -70,8 +71,12 @@ func (c *CLI) newCli() *fisk.Application {
 	run := cli.Commandf("run", "Runs the management agent").Action(c.runCommand)
 	run.Flag("config", "Configuration file to use").Required().StringVar(&c.cfgFile)
 
+	reset := cli.Commandf("reset", "Restores the agent to factory defaults").Action(c.resetCommand)
+	reset.Flag("config", "Configuration file to use").Required().StringVar(&c.cfgFile)
+	reset.Flag("force", "Force reset without prompting").UnNegatableBoolVar(&c.force)
+
 	// generates and saves facts, will be called from auto agents to
-	// update facts on a schedule hidden as its basically a private api
+	// update facts on a schedule hidden as it's basically a private api
 	facts := cli.Commandf("facts", "Save facts about this node to a file").Action(c.factsCommand).Hidden()
 	facts.Flag("config", "Configuration file to use").Required().StringVar(&c.cfgFile)
 

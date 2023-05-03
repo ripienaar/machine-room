@@ -18,22 +18,25 @@ import (
 )
 
 // CommonConfigure parses the configuration file, prepares logging etc and should be called early in any action
-func (c *CLI) CommonConfigure() (*options.Options, *logrus.Entry, error) {
+func (c *CLI) CommonConfigure() (options.Options, *logrus.Entry, error) {
 	var err error
 
 	c.cfgFile, err = filepath.Abs(c.cfgFile)
 	if err != nil {
-		return nil, nil, err
+		return options.Options{}, nil, err
 	}
 
-	parent := filepath.Dir(c.cfgFile)
-	if c.opts.ProvisioningJWTFile == "" {
-		c.opts.ProvisioningJWTFile = filepath.Join(parent, "provisioning.jwt")
-	}
-
-	if c.opts.FactsFile == "" {
-		c.opts.FactsFile = filepath.Join(parent, "instance.json")
-	}
+	c.opts.StartTime = time.Now().UTC()
+	c.opts.ConfigurationDirectory = filepath.Dir(c.cfgFile)
+	c.opts.ServerSeedFile = filepath.Join(c.opts.ConfigurationDirectory, "server.seed")
+	c.opts.ServerJWTFile = filepath.Join(c.opts.ConfigurationDirectory, "server.jwt")
+	c.opts.MachinesDirectory = filepath.Join(c.opts.ConfigurationDirectory, "machine")
+	c.opts.ServerStatusFile = "/var/lib/choria/machine-room/status.json"
+	c.opts.ServerSubmissionDirectory = "/var/lib/choria/machine-room/submission"
+	c.opts.ServerSubmissionSpoolSize = 5000
+	c.opts.ProvisioningJWTFile = filepath.Join(c.opts.ConfigurationDirectory, "provisioning.jwt")
+	c.opts.FactsFile = filepath.Join(c.opts.ConfigurationDirectory, "instance.json")
+	c.opts.ServerStorageDirectory = "/var/lib/choria/machine-room"
 
 	build.ProvisionJWTFile = c.opts.ProvisioningJWTFile
 
@@ -45,9 +48,9 @@ func (c *CLI) CommonConfigure() (*options.Options, *logrus.Entry, error) {
 	case c.logfile != "":
 		log.Formatter = &logrus.JSONFormatter{}
 
-		file, err := os.OpenFile(c.logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		file, err := os.OpenFile(c.logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0660)
 		if err != nil {
-			return nil, nil, fmt.Errorf("could not set up logging: %s", err)
+			return options.Options{}, nil, fmt.Errorf("could not set up logging: %s", err)
 		}
 
 		log.SetOutput(file)
@@ -73,12 +76,12 @@ func (c *CLI) CommonConfigure() (*options.Options, *logrus.Entry, error) {
 
 	err = loadPlugins(c.opts, log.WithField("stage", "plugins"))
 	if err != nil {
-		return nil, nil, fmt.Errorf("loading plugins failed: %v", err)
+		return options.Options{}, nil, fmt.Errorf("loading plugins failed: %v", err)
 	}
 
 	go c.interruptWatcher()
 
-	return c.opts, c.log, nil
+	return *c.opts, c.log, nil
 }
 
 func (c *CLI) validateOptions() error {
