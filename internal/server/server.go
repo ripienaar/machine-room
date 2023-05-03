@@ -210,7 +210,7 @@ func (s *Server) createServerNKey() error {
 	if err != nil {
 		return fmt.Errorf("could not generate user nkey: %v", err)
 	}
-	err = os.WriteFile(s.opts.NatsNeySeedFile, ukps, 0400)
+	err = os.WriteFile(s.opts.NatsNeySeedFile, ukps, 0600)
 	if err != nil {
 		return fmt.Errorf("could not generate user nkey: %v", err)
 	}
